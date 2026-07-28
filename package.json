@@ -17,7 +17,8 @@
     "recharts": "^3.2.1",
     "drizzle-orm": "^0.44.5",
     "postgres": "^3.4.7",
-    "teller-connect-react": "^0.2.3"
+    "plaid": "^45.0.0",
+    "react-plaid-link": "^5.0.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
