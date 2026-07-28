@@ -1,8 +1,8 @@
 // Placeholder — Drizzle schema.
 //
 // Planned tables:
-//   accounts        — Teller account id, name, type, last known balance
-//   transactions    — Teller transaction id, date, amount, description, category
+//   accounts        — Plaid account_id, name, type, last known balance
+//   transactions    — Plaid transaction_id, date, amount, description, category
 //   subscriptions   — detected/confirmed recurring charges
 //   people          — Zelle counterparties (kept out of spending totals)
 //   transfers       — Zelle sends/receives linked to people
