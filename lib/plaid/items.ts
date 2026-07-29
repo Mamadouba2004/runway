@@ -2,6 +2,7 @@ import { CountryCode, type AccountBase } from "plaid";
 import { db } from "@/lib/db";
 import { accounts, plaidItems } from "@/lib/db/schema";
 import { plaidClient } from "@/lib/plaid/client";
+import { encryptSecret } from "@/lib/crypto";
 import { sql } from "drizzle-orm";
 
 // Runs right after /item/public_token/exchange. Looks up the institution name
@@ -24,7 +25,13 @@ export async function persistNewItem(accessToken: string, itemId: string) {
 
   const [item] = await db
     .insert(plaidItems)
-    .values({ itemId, accessToken, institutionId, institutionName })
+    // Encrypted before it touches Postgres — see lib/crypto.ts.
+    .values({
+      itemId,
+      accessToken: encryptSecret(accessToken),
+      institutionId,
+      institutionName,
+    })
     .returning();
 
   const { data: accountsData } = await plaidClient.accountsGet({

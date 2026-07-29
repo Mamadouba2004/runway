@@ -5,6 +5,7 @@ import { accounts, plaidItems, subscriptions, transactions } from "@/lib/db/sche
 import { plaidClient } from "@/lib/plaid/client";
 import { upsertAccounts } from "@/lib/plaid/items";
 import { plaidAmountToBalanceDelta } from "@/lib/plaid/amount";
+import { decryptSecret } from "@/lib/crypto";
 
 export type SyncResult = {
   itemId: string;
@@ -17,13 +18,14 @@ export type SyncResult = {
 // since the last cursor, capped at `count` per page. A null cursor means
 // "never synced" and pulls the Item's full history, one page at a time.
 export async function syncTransactionsForItem(item: typeof plaidItems.$inferSelect): Promise<SyncResult> {
+  const accessToken = decryptSecret(item.accessToken);
   let cursor = item.cursor ?? undefined;
   let hasMore = true;
   const totals = { added: 0, modified: 0, removed: 0 };
 
   while (hasMore) {
     const { data } = await plaidClient.transactionsSync({
-      access_token: item.accessToken,
+      access_token: accessToken,
       cursor,
     });
 
@@ -63,7 +65,7 @@ export async function syncTransactionsForItem(item: typeof plaidItems.$inferSele
  */
 async function refreshSubscriptions(item: typeof plaidItems.$inferSelect) {
   const { data } = await plaidClient.transactionsRecurringGet({
-    access_token: item.accessToken,
+    access_token: decryptSecret(item.accessToken),
   });
 
   if (data.outflow_streams.length === 0) return;
