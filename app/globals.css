@@ -1,33 +1,134 @@
 @import "tailwindcss";
 
-/* Runway is dark-mode only. There is no light theme and no
-   prefers-color-scheme branch — these values are the only palette. */
+/* Modernist design system, dark theme only.
+   Runway has no light mode and no toggle, so the dark values from the
+   design's [data-theme="dark"] block are inlined here as the only palette.
+   Flat, zero radius, 2px rules, flush-left labels, accent used sparingly. */
 :root {
-  --background: #0a0a0b;
-  --surface: #141417;
-  --border: #26262b;
-  --foreground: #ededed;
-  --muted: #8b8b93;
-  --accent: #4ade80;
-  --warning: #fbbf24;
-  --danger: #f87171;
+  /* Design-system roles */
+  --color-bg: #201e1d;
+  --color-surface: #444141;
+  --color-text: #f8f4f4;
+  --color-divider: #bab6b6;
+  --color-neutral-100: #2d2b2b;
+  --color-neutral-200: #444141;
+  --color-neutral-300: #605d5d;
+  --color-neutral-500: #9b9797;
+  --color-neutral-700: #bab6b6;
+  --color-accent: #ff563c;
+  --color-accent-100: rgba(255, 86, 60, 0.14);
+  --color-accent-600: #ff9783;
+  --color-accent-700: #ff563c;
+
+  /* Semantic aliases the Runway screens are authored against */
+  --bg: var(--color-bg);
+  --surface: var(--color-neutral-100);
+  --panel: var(--color-surface);
+  --ink: var(--color-text);
+  --muted: var(--color-neutral-700);
+  --faint: var(--color-neutral-500);
+  --rule: var(--color-neutral-300);
+  --rule2: var(--color-text);
+  --grid: var(--color-neutral-200);
+  --alert: var(--color-accent-700);
+  --alert-soft: var(--color-accent-100);
+  --pos: #6fa98b;
+  --caution: #c6a24a;
+  --caution-soft: rgba(198, 162, 74, 0.14);
+
+  /* Category keys */
+  --c-subs: #8a6e3c;
+  --c-people: #3f6b57;
+  --c-shop: #9a5245;
+  --c-school: #4a6480;
+  --c-bnpl: #5e5a80;
+  --c-food: #3a6e6c;
+  --c-transport: #75705f;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-surface: var(--surface);
-  --color-border: var(--border);
-  --color-foreground: var(--foreground);
-  --color-muted: var(--muted);
-  --color-accent: var(--accent);
-  --color-warning: var(--warning);
-  --color-danger: var(--danger);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-background: var(--bg);
+  --color-ink: var(--ink);
+  --font-sans: var(--font-archivo);
+  --font-mono: var(--font-plex-mono);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-archivo), system-ui, sans-serif;
+}
+
+/* Numerics are mono throughout the design — money, dates, axis labels. */
+.mono {
+  font-family: var(--font-plex-mono), ui-monospace, monospace;
+}
+
+/* Section and field labels: small, wide-tracked, uppercase, muted. */
+.label {
+  font-family: var(--font-plex-mono), ui-monospace, monospace;
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.h-sec {
+  margin: 0;
+  font-family: var(--font-archivo), system-ui, sans-serif;
+  font-weight: 700;
+  font-size: 17px;
+  text-transform: uppercase;
+  letter-spacing: -0.01em;
+}
+
+/* Zero radius everywhere, per the system. */
+.input {
+  background: var(--panel);
+  color: var(--ink);
+  border: 1px solid var(--rule);
+  border-radius: 0;
+  padding: 3px 5px;
+  font-family: var(--font-plex-mono), ui-monospace, monospace;
+}
+
+.input:focus-visible,
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* Button labels sit flush left, never centered. */
+.btn {
+  border-radius: 0;
+  border: 0;
+  text-align: left;
+  cursor: pointer;
+  font-family: var(--font-plex-mono), ui-monospace, monospace;
+}
+
+.btn-on {
+  background: var(--ink);
+  color: var(--bg);
+}
+
+.btn-off {
+  background: transparent;
+  color: var(--ink);
+}
+
+.btn-off:hover {
+  background: var(--color-accent-100);
+}
+
+::selection {
+  background: var(--color-accent-100);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
 }
