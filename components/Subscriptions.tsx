@@ -63,8 +63,10 @@ export function Subscriptions({ subscriptions, total, incomeAmount }: Props) {
           className="grid grid-cols-[1fr_auto] gap-2.5 py-2 border-b border-[var(--rule)]"
         >
           <div className="min-w-0">
-            <div className="text-[13px] truncate">
+            <div className="text-[13px] truncate" title={s.name}>
               {s.name}
+            </div>
+            <div className="text-[13px]">
               {!s.isActive && (
                 <span className="mono text-[9px] tracking-[0.1em] uppercase text-[var(--faint)]">
                   {" "}

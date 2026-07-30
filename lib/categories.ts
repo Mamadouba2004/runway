@@ -20,6 +20,10 @@ const CATEGORIES: Record<string, CategoryMeta> = {
   MEDICAL: { name: "Medical", color: "var(--c-shop)" },
   EDUCATION: { name: "Education", color: "var(--c-school)" },
   LOAN_PAYMENTS: { name: "Loan payments", color: "var(--c-bnpl)" },
+  // Present in real Chase data; absent from the sandbox fixture set.
+  GOVERNMENT_AND_NON_PROFIT: { name: "Government & donations", color: "var(--c-school)" },
+  HOME_IMPROVEMENT: { name: "Home", color: "var(--c-shop)" },
+  OTHER: { name: "Uncategorized", color: "var(--c-transport)" },
 };
 
 // Money moving between the user's own accounts is not spending. Counting it
@@ -29,7 +33,20 @@ export const NON_SPEND_CATEGORIES = new Set([
   "TRANSFER_IN",
   "TRANSFER_OUT",
   "BANK_FEES",
+  // Paychecks and deposits are the opposite of spending — counting them as a
+  // category would put a $0.00 "Income" row next to the real spend rows.
+  "INCOME",
 ]);
+
+/**
+ * Zelle and friends move money to people, not merchants. Plaid's recurring
+ * detection legitimately flags a standing Zelle as a monthly stream, but
+ * counting it as a subscription would both mislabel it and pull it into the
+ * runway projection — the exact distortion the People section exists to avoid.
+ */
+export function isPersonTransfer(description: string): boolean {
+  return /\b(zelle|venmo|cash ?app|paypal)\b/i.test(description);
+}
 
 export function isSpendCategory(primary: string | null): boolean {
   if (!primary) return false;

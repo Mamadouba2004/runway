@@ -34,8 +34,8 @@ export function People({ people }: { people: Person[] }) {
 
       {people.length === 0 && (
         <p className="mono text-[10.5px] text-[var(--faint)] mt-3 leading-relaxed">
-          Nobody added yet. P2P rails like Zelle don’t reliably surface through Plaid, so
-          these are recorded manually.
+          Nobody added yet. Chase does surface Zelle transfers in the imported records,
+          so these can be seeded from real data instead of typed in by hand.
         </p>
       )}
 

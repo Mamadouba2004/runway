@@ -10,7 +10,12 @@ import {
   transfers,
 } from "@/lib/db/schema";
 import { getIncomeModes, getSettings, type Mode } from "@/lib/db/config";
-import { categoryColor, categoryName, isSpendCategory } from "@/lib/categories";
+import {
+  categoryColor,
+  categoryName,
+  isPersonTransfer,
+  isSpendCategory,
+} from "@/lib/categories";
 import {
   addDays,
   daysUntilDayOfMonth,
@@ -62,16 +67,18 @@ export async function getHomeData() {
   const balance = depository.reduce((s, a) => s + Number(a.currentBalance ?? 0), 0);
   const primaryAccount = depository.find((a) => a.subtype === "checking") ?? depository[0];
 
-  const subs: Subscription[] = subRows.map((s) => ({
-    name: s.name,
-    amount: -Number(s.averageAmount),
-    dayOfMonth: new Date(
-      Date.parse(s.predictedNextDate ?? s.lastDate ?? today)
-    ).getUTCDate(),
-    frequency: s.frequency,
-    status: s.status,
-    isActive: s.isActive,
-  }));
+  const subs: Subscription[] = subRows
+    .filter((s) => !isPersonTransfer(s.name))
+    .map((s) => ({
+      name: s.name,
+      amount: -Number(s.averageAmount),
+      dayOfMonth: new Date(
+        Date.parse(s.predictedNextDate ?? s.lastDate ?? today)
+      ).getUTCDate(),
+      frequency: s.frequency,
+      status: s.status,
+      isActive: s.isActive,
+    }));
 
   const scheduled = subs
     .filter((s) => s.isActive)
