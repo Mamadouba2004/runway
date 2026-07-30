@@ -28,11 +28,34 @@ export function People({ people }: { people: Person[] }) {
   const totalSupported = supported.reduce((s, p) => s + p.owed, 0);
 
   return (
-    <div>
-      <p className="mb-3 text-[12.5px] leading-normal text-[var(--muted)] text-pretty">
+    <div className="px-5 py-4">
+      <div className="flex justify-between items-baseline">
+        <h2 className="h-sec" style={{ color: "var(--c-people)" }}>
+          People
+        </h2>
+        <span className="mono text-[10px] text-[var(--muted)]">
+          {people.length} from Zelle
+        </span>
+      </div>
+
+      <p className="mt-2 mb-0 text-[12.5px] leading-normal text-[var(--muted)] text-pretty">
         Money sent to people you choose to support. Tracked, never scored — nothing here
         counts as overspending or against the runway.
       </p>
+
+      {supported.length > 0 && (
+        <div className="mt-3 flex items-baseline gap-2">
+          <span
+            className="mono text-[21px] font-semibold"
+            style={{ color: "var(--c-people)" }}
+          >
+            {money(totalSupported)}
+          </span>
+          <span className="mono text-[10px] text-[var(--muted)]">
+            net sent to {supported.length} people
+          </span>
+        </div>
+      )}
 
       {people.length === 0 && (
         <p className="mono text-[10.5px] text-[var(--faint)] mt-3 leading-relaxed">
@@ -42,7 +65,7 @@ export function People({ people }: { people: Person[] }) {
       )}
 
       {supported.map((p) => (
-        <details key={p.id} className="border-b border-[var(--rule)] py-2">
+        <details key={p.id} className="mt-3 pt-2.5 border-t border-[var(--rule)]">
           <summary className="flex justify-between items-baseline gap-3 cursor-pointer list-none">
             <span className="text-[14px] font-semibold truncate" title={p.name}>
               {p.name}
