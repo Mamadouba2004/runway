@@ -30,6 +30,11 @@ export default function RootLayout({
       lang="en"
       // dark-mode only: the `dark` class is always on, there is no toggle
       className={`dark ${archivo.variable} ${plexMono.variable} h-full antialiased`}
+      // A browser extension injects inline styles onto <html> before React
+      // hydrates (transition-property/margin-right), which React reports as a
+      // mismatch. Nothing in this app writes those, and the warning is scoped
+      // to this element's attributes — children still hydrate normally.
+      suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col">{children}</body>
     </html>

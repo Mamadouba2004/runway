@@ -69,15 +69,23 @@ export function reconstructHistory(
 }
 
 /**
- * Project forward from the last known balance using only charges we can
- * actually name — recurring streams and the configured paycheck. Variable
- * day-to-day spending is deliberately excluded, which makes this an
- * optimistic bound; the UI says so rather than inventing a burn rate.
+ * Project forward from the last known balance.
+ *
+ * Two components, deliberately kept separate:
+ *   - `charges` are dated events (subscriptions, the paycheck) applied on their
+ *     day of the month, so the sawtooth around payday stays visible.
+ *   - `dailyBurn` is the trailing average of everything else — the variable
+ *     spending that never shows up as a named recurring stream but is most of
+ *     where the money actually goes. Positive number, subtracted each day.
+ *
+ * Modelling only `charges` produced a line that climbed ~5x faster than the
+ * account ever has, because groceries and takeout simply were not in it.
  */
 export function project(
   from: DayPoint,
   charges: RecurringCharge[],
-  days: number
+  days: number,
+  dailyBurn = 0
 ): DayPoint[] {
   const points: DayPoint[] = [];
   let running = from.balance;
@@ -85,12 +93,38 @@ export function project(
   for (let i = 1; i <= days; i++) {
     const iso = addDays(from.date, i);
     const dom = new Date(Date.parse(iso)).getUTCDate();
+
+    running -= dailyBurn;
     for (const c of charges) {
       if (c.dayOfMonth === dom) running += c.amount;
     }
+
     points.push({ date: iso, balance: running, recorded: false });
   }
   return points;
+}
+
+/**
+ * Average daily spend over a trailing window, excluding anything already
+ * modelled as a recurring charge — otherwise Netflix gets counted twice, once
+ * as a dated charge and again inside the average.
+ */
+export function trailingDailyBurn(
+  txns: { date: string; amount: number; name: string; isSpend: boolean }[],
+  windowStart: string,
+  windowDays: number,
+  recurringNames: string[]
+): number {
+  const known = recurringNames.map((n) => n.toLowerCase());
+
+  const variable = txns.filter((t) => {
+    if (!t.isSpend || t.amount >= 0 || t.date < windowStart) return false;
+    const name = t.name.toLowerCase();
+    return !known.some((r) => r.length > 3 && name.includes(r));
+  });
+
+  const total = variable.reduce((s, t) => s + Math.abs(t.amount), 0);
+  return windowDays > 0 ? total / windowDays : 0;
 }
 
 export function lowestPoint(points: DayPoint[]): DayPoint | null {

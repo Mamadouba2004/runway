@@ -6,6 +6,7 @@ import { plaidClient } from "@/lib/plaid/client";
 import { upsertAccounts } from "@/lib/plaid/items";
 import { plaidAmountToBalanceDelta } from "@/lib/plaid/amount";
 import { decryptSecret } from "@/lib/crypto";
+import { importZelleTransfers } from "@/lib/people/zelle";
 
 export type SyncResult = {
   itemId: string;
@@ -55,6 +56,9 @@ export async function syncTransactionsForItem(item: typeof plaidItems.$inferSele
   }
 
   await refreshSubscriptions(item);
+  // Zelle counterparties come from the transactions we just wrote, so this
+  // runs after the pages are in rather than as a separate manual step.
+  await importZelleTransfers();
 
   return { itemId: item.itemId, ...totals };
 }

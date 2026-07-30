@@ -108,9 +108,10 @@ export const categoryCaps = pgTable("category_caps", {
 });
 
 // --- People ----------------------------------------------------------------
-// Hand-entered. Zelle and other P2P rails do not reliably surface as
-// transactions through Plaid, so these are not inferred from imported data.
-// Kept out of spending categories so they don't distort caps or the runway.
+// Seeded from real Zelle transactions (Chase does surface them, contrary to an
+// earlier assumption here), with manual entry kept for anything that does not
+// parse to a clean name. Kept out of spending categories so they don't distort
+// caps or the runway.
 
 export const people = pgTable("people", {
   id: serial("id").primaryKey(),
@@ -121,6 +122,10 @@ export const people = pgTable("people", {
 
 export const transfers = pgTable("transfers", {
   id: serial("id").primaryKey(),
+  // Set when the row was imported from a Plaid transaction rather than typed
+  // in. Unique, so re-running the Zelle import is idempotent. Null for manual
+  // entries, which is why it is nullable rather than part of the key.
+  sourceTransactionId: text("source_transaction_id").unique(),
   personId: integer("person_id")
     .notNull()
     .references(() => people.id, { onDelete: "cascade" }),

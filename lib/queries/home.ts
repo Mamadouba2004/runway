@@ -23,6 +23,7 @@ import {
   lowestPoint,
   project,
   reconstructHistory,
+  trailingDailyBurn,
   toISODate,
   type DayPoint,
   type RecurringCharge,
@@ -107,7 +108,30 @@ export async function getHomeData() {
       ? history[history.length - 1]
       : { date: today, balance, recorded: true };
 
-  const future = project(anchor, charges, 180);
+  // Burn is measured over 180 days: long enough to smooth a heavy month,
+  // short enough to reflect current habits rather than two-year-old ones.
+  const BURN_WINDOW_DAYS = 180;
+  const burnStart = addDays(today, -BURN_WINDOW_DAYS);
+  const dailyBurn = trailingDailyBurn(
+    txnRows.map((t) => ({
+      date: t.date,
+      amount: Number(t.amount),
+      name: t.name,
+      isSpend: isSpendCategory(t.personalFinanceCategoryPrimary),
+    })),
+    burnStart,
+    BURN_WINDOW_DAYS,
+    subs.filter((s) => s.isActive).map((s) => s.name)
+  );
+
+  // What actually landed as income over the same window, for comparison
+  // against the configured paycheck figure.
+  const observedIncome =
+    txnRows
+      .filter((t) => t.date >= burnStart && t.personalFinanceCategoryPrimary === "INCOME")
+      .reduce((sum, t) => sum + Number(t.amount), 0) / (BURN_WINDOW_DAYS / 30);
+
+  const future = project(anchor, charges, 180, dailyBurn);
   const series = [...history, ...future];
   const low = lowestPoint(future);
   const breach = firstBreach(future, floor);
@@ -158,15 +182,24 @@ export async function getHomeData() {
       name: p.name,
       note: p.note,
       owed: sent - received,
-      transfers: theirs.map((t) => ({
-        id: t.id,
-        date: t.date,
-        amount: Number(t.amount),
-        direction: t.direction,
-        note: t.note,
-      })),
+      sent,
+      received,
+      imported: p.note === "from Zelle",
+      transfers: theirs
+        .slice()
+        .sort((a, b) => b.date.localeCompare(a.date))
+        .map((t) => ({
+          id: t.id,
+          date: t.date,
+          amount: Number(t.amount),
+          direction: t.direction,
+          note: t.note,
+        })),
     };
-  });
+  })
+    // The section is "money sent to people you support", so rank by net sent.
+    // People who only ever sent money in sort to the bottom.
+    .sort((a, b) => b.owed - a.owed);
 
   const daysToPay = income ? daysUntilDayOfMonth(today, income.payDayOfMonth) : null;
 
@@ -189,6 +222,9 @@ export async function getHomeData() {
     firstRecordedDate: history.length > 0 ? history[0].date : null,
     low,
     breach,
+    dailyBurn,
+    monthlyBurn: dailyBurn * 30,
+    observedMonthlyIncome: observedIncome,
     categories,
     subscriptions: subs,
     subscriptionTotal: scheduled,

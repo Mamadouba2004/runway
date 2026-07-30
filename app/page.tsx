@@ -58,9 +58,11 @@ export default async function Home() {
         <RunwayChart
           series={data.series}
           floor={data.floor}
-          low={data.low}
-          breach={data.breach}
-          firstRecordedDate={data.firstRecordedDate}
+          monthlyBurn={data.monthlyBurn}
+          subscriptionTotal={data.subscriptionTotal}
+          configuredIncome={data.incomeAmount}
+          observedIncome={data.observedMonthlyIncome}
+          payDayOfMonth={data.payDayOfMonth}
         />
 
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px_380px] border-b-2 border-[var(--rule2)]">

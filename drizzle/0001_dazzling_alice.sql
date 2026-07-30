@@ -1,0 +1,2 @@
+ALTER TABLE "transfers" ADD COLUMN "source_transaction_id" text;--> statement-breakpoint
+ALTER TABLE "transfers" ADD CONSTRAINT "transfers_source_transaction_id_unique" UNIQUE("source_transaction_id");
