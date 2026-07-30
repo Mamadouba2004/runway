@@ -11,7 +11,7 @@ import { LINK_TOKEN_STORAGE_KEY } from "@/lib/plaid/oauth";
 import { refMessage } from "@/lib/client-errors";
 import { ConnectedAccounts } from "@/components/ConnectedAccounts";
 
-export function PlaidLinkButton() {
+export function PlaidLinkButton({ env }: { env: "sandbox" | "production" }) {
   const [linkToken, setLinkToken] = useState<string | null>(null);
   const [accounts, setAccounts] = useState<LinkedAccount[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -33,7 +33,7 @@ export function PlaidLinkButton() {
     fetch("/api/plaid/create-link-token", { method: "POST" })
       .then(async (res) => {
         const data = await res.json();
-        if (!res.ok) throw new Error("request failed");
+        if (!res.ok) throw new Error(refMessage("", data).trim());
         return data;
       })
       .then((data) => {
@@ -41,7 +41,7 @@ export function PlaidLinkButton() {
         // /oauth needs this exact token to resume the flow after the bank redirect.
         window.localStorage.setItem(LINK_TOKEN_STORAGE_KEY, data.link_token);
       })
-      .catch(() => setError("Could not initialize Plaid Link."));
+      .catch((e) => setError(`Could not initialize Plaid Link. ${e.message}`.trim()));
   }, []);
 
   const onSuccess = useCallback<PlaidLinkOnSuccess>(async (public_token) => {
@@ -66,7 +66,7 @@ export function PlaidLinkButton() {
 
   const { open, ready } = usePlaidLink({ token: linkToken, onSuccess, onExit });
 
-  if (accounts) return <ConnectedAccounts accounts={accounts} />;
+  if (accounts) return <ConnectedAccounts accounts={accounts} env={env} />;
 
   return (
     <div className="flex flex-col gap-2">
@@ -74,9 +74,11 @@ export function PlaidLinkButton() {
         type="button"
         onClick={() => open()}
         disabled={!ready}
-        className="rounded-full bg-foreground px-5 py-3 text-sm font-medium text-background disabled:opacity-50"
+        className="btn btn-on px-5 py-3 text-[10.5px] tracking-[0.1em] uppercase min-h-[38px] disabled:opacity-45"
       >
-        Connect a bank account (sandbox)
+        {env === "production"
+          ? "Connect your bank"
+          : "Connect a bank account (sandbox)"}
       </button>
       {error && <p className="max-w-md text-sm text-red-500">{error}</p>}
     </div>

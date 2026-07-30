@@ -5,6 +5,7 @@ import { CategoryLimits } from "@/components/CategoryLimits";
 import { Subscriptions } from "@/components/Subscriptions";
 import { People } from "@/components/People";
 import { getHomeData } from "@/lib/queries/home";
+import { plaidEnv } from "@/lib/plaid/client";
 
 // Reads live Plaid + Postgres state on every request.
 export const dynamic = "force-dynamic";
@@ -16,7 +17,12 @@ export default async function Home() {
     return (
       <main className="flex flex-1 flex-col items-center justify-center gap-6 p-16">
         <h1 className="h-sec text-[28px]">Runway</h1>
-        <PlaidLinkButton />
+        {plaidEnv === "production" && (
+          <p className="mono text-[10px] tracking-[0.14em] uppercase" style={{ color: "var(--alert)" }}>
+            Production — real bank credentials
+          </p>
+        )}
+        <PlaidLinkButton env={plaidEnv} />
       </main>
     );
   }
