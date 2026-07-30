@@ -21,6 +21,9 @@ export const plaidItems = pgTable("plaid_items", {
   institutionId: text("institution_id"),
   institutionName: text("institution_name"),
   cursor: text("cursor"),
+  lastSyncedAt: timestamp("last_synced_at", { withTimezone: true }),
+  // Plaid pushes SYNC_UPDATES_AVAILABLE here when Chase has new data.
+  webhookUrl: text("webhook_url"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

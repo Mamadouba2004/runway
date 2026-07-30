@@ -13,13 +13,30 @@ export type SyncResult = {
   added: number;
   modified: number;
   removed: number;
+  syncedAt: string;
 };
 
 // /transactions/sync is cursor-based: each call returns only what changed
 // since the last cursor, capped at `count` per page. A null cursor means
 // "never synced" and pulls the Item's full history, one page at a time.
-export async function syncTransactionsForItem(item: typeof plaidItems.$inferSelect): Promise<SyncResult> {
+export async function syncTransactionsForItem(
+  item: typeof plaidItems.$inferSelect,
+  opts: { forceRefresh?: boolean } = {}
+): Promise<SyncResult> {
   const accessToken = decryptSecret(item.accessToken);
+
+  // /transactions/sync only returns what Plaid has already pulled. To get data
+  // newer than Plaid's last scheduled poll, ask it to go query Chase now.
+  // Asynchronous: it returns immediately and Plaid fires SYNC_UPDATES_AVAILABLE
+  // when the fetch lands, so this run may not yet include the new rows.
+  if (opts.forceRefresh) {
+    try {
+      await plaidClient.transactionsRefresh({ access_token: accessToken });
+    } catch (error) {
+      // A refresh failure must not block reading what Plaid already has.
+      console.error("transactionsRefresh failed (continuing with sync):", error);
+    }
+  }
   let cursor = item.cursor ?? undefined;
   let hasMore = true;
   const totals = { added: 0, modified: 0, removed: 0 };
@@ -60,7 +77,10 @@ export async function syncTransactionsForItem(item: typeof plaidItems.$inferSele
   // runs after the pages are in rather than as a separate manual step.
   await importZelleTransfers();
 
-  return { itemId: item.itemId, ...totals };
+  const syncedAt = new Date();
+  await db.update(plaidItems).set({ lastSyncedAt: syncedAt }).where(eq(plaidItems.id, item.id));
+
+  return { itemId: item.itemId, ...totals, syncedAt: syncedAt.toISOString() };
 }
 
 /**
@@ -159,11 +179,20 @@ async function upsertTransactions(itemPk: number, plaidTransactions: Transaction
     });
 }
 
-export async function syncAllItems(): Promise<SyncResult[]> {
+export async function syncAllItems(
+  opts: { forceRefresh?: boolean } = {}
+): Promise<SyncResult[]> {
   const items = await db.select().from(plaidItems);
   const results: SyncResult[] = [];
   for (const item of items) {
-    results.push(await syncTransactionsForItem(item));
+    results.push(await syncTransactionsForItem(item, opts));
   }
   return results;
+}
+
+/** Used by the webhook, which identifies the Item by Plaid's item_id. */
+export async function syncByPlaidItemId(plaidItemId: string): Promise<SyncResult | null> {
+  const [item] = await db.select().from(plaidItems).where(eq(plaidItems.itemId, plaidItemId));
+  if (!item) return null;
+  return syncTransactionsForItem(item);
 }

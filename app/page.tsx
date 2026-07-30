@@ -4,6 +4,7 @@ import { RunwayChart } from "@/components/RunwayChart";
 import { CategoryLimits } from "@/components/CategoryLimits";
 import { Subscriptions } from "@/components/Subscriptions";
 import { People } from "@/components/People";
+import { SyncNowButton } from "@/components/SyncNowButton";
 import { getHomeData } from "@/lib/queries/home";
 import { plaidEnv } from "@/lib/plaid/client";
 
@@ -49,6 +50,7 @@ export default async function Home() {
           <span className="mono text-[10px] tracking-[0.14em] uppercase font-semibold text-[var(--ink)]">
             {data.mode}
           </span>
+          <SyncNowButton lastSyncedAt={data.lastSyncedAt} />
           <span className="text-[12.5px] text-[var(--ink)]">
             {data.transactionCount} imported transactions
             {data.firstRecordedDate && data.lastRecordedDate

@@ -20,6 +20,10 @@ export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   if (pathname === "/login") return NextResponse.next();
 
+  // Plaid cannot authenticate with a session cookie. This route verifies the
+  // Plaid-Verification JWT itself and rejects anything unsigned.
+  if (pathname === "/api/plaid/webhook") return NextResponse.next();
+
   // API callers get a status they can act on rather than a login redirect.
   if (pathname.startsWith("/api/")) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });

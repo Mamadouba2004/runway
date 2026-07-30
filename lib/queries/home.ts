@@ -222,6 +222,7 @@ export async function getHomeData() {
     savingsBalance,
     depositoryCount: depository.length,
     institutionName: items[0]?.institutionName ?? null,
+    lastSyncedAt: items[0]?.lastSyncedAt?.toISOString() ?? null,
     safeToSpend: checkingBalance - scheduled - floor,
     scheduled,
     daysToPay,
