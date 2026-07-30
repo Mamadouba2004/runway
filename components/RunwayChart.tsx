@@ -89,7 +89,7 @@ export function RunwayChart({
 
   if (windowed.length < 2 || !anchor) {
     return (
-      <section className="px-5 pt-4 pb-3 border-b-2 border-[var(--rule2)]">
+      <section className="px-4 pt-3 pb-4">
         <h2 className="h-sec text-[19px]">Balance runway</h2>
         <p className="mono text-[11px] text-[var(--muted)] mt-3">
           Not enough recorded history to draw a runway yet.
@@ -128,7 +128,7 @@ export function RunwayChart({
   const hovered = hover !== null ? windowed[hover] : null;
 
   return (
-    <section className="px-5 pt-4 pb-3 border-b-2 border-[var(--rule2)]">
+    <section className="px-4 pt-3 pb-4">
       <div className="flex justify-between items-start mb-2.5 gap-6 flex-wrap">
         <div>
           <h2 className="h-sec text-[19px]">Balance runway</h2>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
 type State = "idle" | "syncing" | "error";
@@ -10,6 +10,17 @@ export function SyncNowButton({ lastSyncedAt }: { lastSyncedAt: string | null })
   const [state, setState] = useState<State>("idle");
   const [added, setAdded] = useState<number | null>(null);
   const [pending, startTransition] = useTransition();
+  // Relative time depends on Date.now(), which differs between the server
+  // render and hydration. Compute it only on the client so the two agree.
+  const [relativeLabel, setRelativeLabel] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!lastSyncedAt) return;
+    const update = () => setRelativeLabel(relative(lastSyncedAt));
+    update();
+    const id = setInterval(update, 60_000);
+    return () => clearInterval(id);
+  }, [lastSyncedAt]);
 
   async function run() {
     setState("syncing");
@@ -49,7 +60,9 @@ export function SyncNowButton({ lastSyncedAt }: { lastSyncedAt: string | null })
           : added !== null
             ? `${added} new · just now`
             : lastSyncedAt
-              ? `synced ${relative(lastSyncedAt)}`
+              ? relativeLabel
+                ? `synced ${relativeLabel}`
+                : "synced"
               : "never synced"}
       </span>
     </div>
