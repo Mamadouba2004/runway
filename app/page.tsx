@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { PlaidLinkButton } from "@/components/PlaidLinkButton";
 import { SummaryBar } from "@/components/SummaryBar";
 import { RunwayChart } from "@/components/RunwayChart";
@@ -42,7 +43,8 @@ export default async function Home() {
           scheduled={data.scheduled}
           floor={data.floor}
           daysToPay={data.daysToPay}
-          payDayOfMonth={data.payDayOfMonth}
+          nextPayday={data.nextPayday}
+          cadence={data.cadence}
           mode={data.mode}
         />
 
@@ -51,6 +53,12 @@ export default async function Home() {
             {data.mode}
           </span>
           <SyncNowButton lastSyncedAt={data.lastSyncedAt} />
+          <Link
+            href="/profile"
+            className="btn btn-off border border-[var(--rule)] px-3 py-1.5 text-[10px] uppercase tracking-[0.1em]"
+          >
+            Profile
+          </Link>
           <span className="text-[12.5px] text-[var(--ink)]">
             {data.transactionCount} imported transactions
             {data.firstRecordedDate && data.lastRecordedDate
@@ -64,9 +72,13 @@ export default async function Home() {
           floor={data.floor}
           monthlyBurn={data.monthlyBurn}
           subscriptionTotal={data.subscriptionTotal}
-          configuredIncome={data.incomeAmount}
-          observedIncome={data.observedMonthlyIncome}
-          payDayOfMonth={data.payDayOfMonth}
+          observedPerPaycheck={data.incomeAmount}
+          capPerPaycheck={data.incomeStats.cap}
+          paychecksPerYear={data.cadence === "biweekly" ? 26 : 12}
+          incomeConfidence={data.incomeStats.confidence}
+          incomeSampleSize={data.incomeStats.count}
+          paydayDates={data.paydayDates}
+          band={data.band}
         />
 
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px_380px] border-b-2 border-[var(--rule2)]">

@@ -57,10 +57,24 @@ export function Subscriptions({ subscriptions, total, incomeAmount }: Props) {
         </p>
       )}
 
-      {subscriptions.map((s) => (
+      {subscriptions.map((s) => {
+        const monthly = s.frequency === "MONTHLY";
+        const unknown = s.frequency === "UNKNOWN";
+        return (
         <div
           key={`${s.name}-${s.dayOfMonth}-${s.amount}`}
           className="grid grid-cols-[1fr_auto] gap-2.5 py-2 border-b border-[var(--rule)]"
+          style={
+            monthly
+              ? undefined
+              : // Non-monthly cadences get an inset rule and a tint so they do
+                // not read as part of the recurring monthly drain.
+                {
+                  borderLeft: `3px solid ${unknown ? "var(--caution)" : "var(--c-school)"}`,
+                  paddingLeft: 9,
+                  background: "var(--panel)",
+                }
+          }
         >
           <div className="min-w-0">
             <div className="text-[13px] truncate" title={s.name}>
@@ -80,17 +94,31 @@ export function Subscriptions({ subscriptions, total, incomeAmount }: Props) {
                 </span>
               )}
             </div>
-            <div className="mono text-[10px] text-[var(--faint)] mt-0.5">
-              {s.frequency.toLowerCase()} · day {s.dayOfMonth}
+            <div
+              className="mono text-[10px] mt-0.5"
+              style={{ color: monthly ? "var(--faint)" : unknown ? "var(--caution)" : "var(--c-school)" }}
+            >
+              {s.frequency.toLowerCase().replace("_", "-")} · day {s.dayOfMonth}
             </div>
           </div>
-          <div className="mono text-[13px] text-right">{money(Math.abs(s.amount))}</div>
+          <div className="text-right">
+            <div className="mono text-[13px]">{money(Math.abs(s.amount))}</div>
+            {!monthly && (
+              <div className="mono text-[9.5px] text-[var(--faint)] mt-0.5">
+                {unknown
+                  ? "cadence unknown"
+                  : `≈ ${money(Math.abs(s.monthlyAmount))}/mo`}
+              </div>
+            )}
+          </div>
         </div>
-      ))}
+        );
+      })}
 
       <div className="mono text-[10px] text-[var(--faint)] mt-3 leading-relaxed">
-        Detected by Plaid’s recurring-transactions endpoint, not hand-rolled matching. Only
-        streams marked active are counted against the runway.
+        Detected by Plaid’s recurring-transactions endpoint. Only active streams count
+        against the runway, and non-monthly cadences are converted to a monthly
+        equivalent rather than charged in full every month.
       </div>
     </div>
   );

@@ -15,13 +15,16 @@ import {
   categoryName,
   isPersonTransfer,
   isSpendCategory,
+  monthlyEquivalent,
 } from "@/lib/categories";
+import { incomeStats, upcomingPaydays } from "@/lib/income";
 import {
   addDays,
-  daysUntilDayOfMonth,
+  daysBetween,
   firstBreach,
   lowestPoint,
   project,
+  projectBand,
   reconstructHistory,
   trailingDailyBurn,
   toISODate,
@@ -31,7 +34,8 @@ import {
 
 export type Subscription = {
   name: string;
-  amount: number; // negative (outflow)
+  amount: number; // negative (outflow), as actually charged
+  monthlyAmount: number; // negative, normalised to per-month
   dayOfMonth: number;
   frequency: string;
   status: string;
@@ -89,11 +93,13 @@ export async function getHomeData() {
       frequency: s.frequency,
       status: s.status,
       isActive: s.isActive,
+      monthlyAmount: -monthlyEquivalent(Number(s.averageAmount), s.frequency),
     }));
 
+  // Normalised to per-month so an annual renewal is not billed twelve times.
   const scheduled = subs
     .filter((s) => s.isActive)
-    .reduce((sum, x) => sum + Math.abs(x.amount), 0);
+    .reduce((sum, x) => sum + Math.abs(x.monthlyAmount), 0);
 
   // --- Runway series ------------------------------------------------------
   const history = reconstructHistory(
@@ -103,15 +109,10 @@ export async function getHomeData() {
 
   const charges: RecurringCharge[] = subs
     .filter((s) => s.isActive)
-    .map((s) => ({ amount: s.amount, dayOfMonth: s.dayOfMonth, label: s.name }));
+    .map((s) => ({ amount: s.monthlyAmount, dayOfMonth: s.dayOfMonth, label: s.name }));
 
-  if (income) {
-    charges.push({
-      amount: Number(income.amountPerPaycheck),
-      dayOfMonth: income.payDayOfMonth,
-      label: `${mode} paycheck`,
-    });
-  }
+  // Paychecks are no longer a day-of-month charge: both jobs pay biweekly, so
+  // they come through as explicit dates instead.
 
   const anchor: DayPoint =
     history.length > 0
@@ -134,14 +135,43 @@ export async function getHomeData() {
     subs.filter((s) => s.isActive).map((s) => s.name)
   );
 
-  // What actually landed as income over the same window, for comparison
-  // against the configured paycheck figure.
-  const observedIncome =
-    txnRows
-      .filter((t) => t.date >= burnStart && t.personalFinanceCategoryPrimary === "INCOME")
-      .reduce((sum, t) => sum + Number(t.amount), 0) / (BURN_WINDOW_DAYS / 30);
+  // Income, isolated to this mode's employer. A blended average over every
+  // INCOME row would mix a job that ended in 2025 with tax refunds and $0.01
+  // interest payments.
+  const stats = incomeStats(txnRows, income?.sourcePattern ?? null, {
+    hourlyRate: income?.hourlyRate ? Number(income.hourlyRate) : null,
+    maxHoursPerWeek: income?.maxHoursPerWeek ? Number(income.maxHoursPerWeek) : null,
+    windowDays: 365,
+  });
 
-  const future = project(anchor, charges, 180, dailyBurn);
+  // A manual override wins; otherwise project from what actually landed.
+  const perPaycheck =
+    income?.amountPerPaycheck !== null && income?.amountPerPaycheck !== undefined
+      ? Number(income.amountPerPaycheck)
+      : stats.mean;
+
+  const paydayDates = upcomingPaydays(
+    anchor.date,
+    income?.cadence ?? "biweekly",
+    income?.payAnchorDate ?? null,
+    income?.payDayOfMonth ?? null,
+    14
+  );
+
+  const future = project(
+    anchor,
+    charges,
+    180,
+    dailyBurn,
+    paydayDates.map((date) => ({ date, amount: perPaycheck }))
+  );
+
+  // Only draw a spread where there is a real spread to draw. One paycheck is a
+  // data point, not a distribution.
+  const band =
+    stats.count >= 2
+      ? projectBand(anchor, charges, 180, dailyBurn, paydayDates, stats.min, stats.max)
+      : null;
   const series = [...history, ...future];
   const low = lowestPoint(future);
   const breach = firstBreach(future, floor);
@@ -211,7 +241,14 @@ export async function getHomeData() {
     // People who only ever sent money in sort to the bottom.
     .sort((a, b) => b.owed - a.owed);
 
-  const daysToPay = income ? daysUntilDayOfMonth(today, income.payDayOfMonth) : null;
+  const nextPayday = upcomingPaydays(
+    today,
+    income?.cadence ?? "biweekly",
+    income?.payAnchorDate ?? null,
+    income?.payDayOfMonth ?? null,
+    1
+  )[0] ?? null;
+  const daysToPay = nextPayday ? daysBetween(today, nextPayday) : null;
 
   return {
     connected,
@@ -226,8 +263,16 @@ export async function getHomeData() {
     safeToSpend: checkingBalance - scheduled - floor,
     scheduled,
     daysToPay,
-    incomeAmount: income ? Number(income.amountPerPaycheck) : null,
-    payDayOfMonth: income?.payDayOfMonth ?? null,
+    incomeAmount: perPaycheck,
+    incomeStats: stats,
+    incomeOverride: income?.amountPerPaycheck !== null && income?.amountPerPaycheck !== undefined,
+    cadence: income?.cadence ?? "biweekly",
+    nextPayday,
+    payAnchorDate: income?.payAnchorDate ?? null,
+    hourlyRate: income?.hourlyRate ? Number(income.hourlyRate) : null,
+    maxHoursPerWeek: income?.maxHoursPerWeek ? Number(income.maxHoursPerWeek) : null,
+    paydayDates,
+    band,
     series,
     lastRecordedDate: history.length > 0 ? history[history.length - 1].date : null,
     firstRecordedDate: history.length > 0 ? history[0].date : null,
@@ -235,7 +280,7 @@ export async function getHomeData() {
     breach,
     dailyBurn,
     monthlyBurn: dailyBurn * 30,
-    observedMonthlyIncome: observedIncome,
+    observedMonthlyIncome: (stats.mean * 26) / 12,
     categories,
     subscriptions: subs,
     subscriptionTotal: scheduled,

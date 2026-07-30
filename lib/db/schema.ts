@@ -98,10 +98,23 @@ export const settings = pgTable("settings", {
     .default("100.00"),
 });
 
+// Income is per-mode because the employer changes with the mode: work-study
+// during school, a research-foundation stipend during the internship. A single
+// blended average across all INCOME rows would mix a job that ended 16 months
+// ago with the current one, plus tax refunds and interest.
 export const incomeModes = pgTable("income_modes", {
   mode: text("mode").primaryKey(),
-  amountPerPaycheck: numeric("amount_per_paycheck", { precision: 14, scale: 2 }).notNull(),
-  payDayOfMonth: integer("pay_day_of_month").notNull().default(22),
+  // Manual override. Null means "use the observed average for this source".
+  amountPerPaycheck: numeric("amount_per_paycheck", { precision: 14, scale: 2 }),
+  // "biweekly" anchors on payAnchorDate; "monthly" on payDayOfMonth.
+  cadence: text("cadence").notNull().default("biweekly"),
+  payAnchorDate: date("pay_anchor_date"),
+  payDayOfMonth: integer("pay_day_of_month"),
+  // Substring matched against the transaction description to isolate this
+  // mode's paychecks from every other kind of deposit.
+  sourcePattern: text("source_pattern"),
+  hourlyRate: numeric("hourly_rate", { precision: 8, scale: 2 }),
+  maxHoursPerWeek: numeric("max_hours_per_week", { precision: 5, scale: 2 }),
 });
 
 export const categoryCaps = pgTable("category_caps", {

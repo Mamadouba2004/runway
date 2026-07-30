@@ -13,7 +13,8 @@ type Props = {
   scheduled: number;
   floor: number;
   daysToPay: number | null;
-  payDayOfMonth: number | null;
+  nextPayday: string | null;
+  cadence: string;
   mode: "internship" | "school";
 };
 
@@ -31,7 +32,8 @@ export function SummaryBar({
   scheduled,
   floor,
   daysToPay,
-  payDayOfMonth,
+  nextPayday,
+  cadence,
   mode,
 }: Props) {
   return (
@@ -64,9 +66,7 @@ export function SummaryBar({
         <div className="label">Next deposit</div>
         <div className={figure}>{daysToPay !== null ? `${daysToPay}d` : "—"}</div>
         <div className="mono text-[9.5px] text-[var(--faint)] mt-1">
-          {payDayOfMonth !== null
-            ? `${mode} · the ${ordinal(payDayOfMonth)}`
-            : "no pay schedule set"}
+          {nextPayday ? `${nextPayday} · ${cadence}` : "no pay schedule set"}
         </div>
       </div>
 
@@ -161,8 +161,3 @@ function FloorTile({
   );
 }
 
-function ordinal(n: number): string {
-  const s = ["th", "st", "nd", "rd"];
-  const v = n % 100;
-  return n + (s[(v - 20) % 10] ?? s[v] ?? s[0]);
-}

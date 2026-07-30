@@ -9,9 +9,15 @@ type Props = {
   floor: number;
   monthlyBurn: number;
   subscriptionTotal: number;
-  configuredIncome: number | null;
-  observedIncome: number;
-  payDayOfMonth: number | null;
+  /** Per-paycheck, observed average for this mode's employer. */
+  observedPerPaycheck: number;
+  /** Per-paycheck ceiling from hourly rate x max hours, if configured. */
+  capPerPaycheck: number | null;
+  paychecksPerYear: number;
+  incomeConfidence: "none" | "low" | "medium" | "high";
+  incomeSampleSize: number;
+  paydayDates: string[];
+  band: { date: string; low: number; high: number }[] | null;
 };
 
 const W = 1396;
@@ -21,6 +27,8 @@ const PLOT_TOP = 18;
 const PLOT_BOTTOM = 286;
 
 const RANGES = [
+  { key: "1w", label: "1W", days: 7 },
+  { key: "1m", label: "1M", days: 30 },
   { key: "3m", label: "3M", days: 90 },
   { key: "6m", label: "6M", days: 180 },
   { key: "1y", label: "1Y", days: 365 },
@@ -32,14 +40,18 @@ export function RunwayChart({
   floor,
   monthlyBurn,
   subscriptionTotal,
-  configuredIncome,
-  observedIncome,
-  payDayOfMonth,
+  observedPerPaycheck,
+  capPerPaycheck,
+  paychecksPerYear,
+  incomeConfidence,
+  incomeSampleSize,
+  paydayDates,
+  band,
 }: Props) {
   const [range, setRange] = useState<(typeof RANGES)[number]["key"]>("6m");
   // Which income figure drives the forward line. "observed" is what actually
   // landed; "configured" is the number set in Limits.
-  const [basis, setBasis] = useState<"observed" | "configured">("observed");
+  const [basis, setBasis] = useState<"observed" | "cap">("observed");
   const [hover, setHover] = useState<number | null>(null);
 
   const recorded = useMemo(() => series.filter((p) => p.recorded), [series]);
@@ -48,8 +60,11 @@ export function RunwayChart({
   // Re-derive the forward line client-side so the basis toggle is instant.
   const projected = useMemo(() => {
     if (!anchor) return [];
-    const income = basis === "configured" ? (configuredIncome ?? 0) : observedIncome;
+    // Per paycheck, added on each payday — not a monthly figure, or a
+    // biweekly schedule would collect it 26 times a year instead of 12.
+    const income = basis === "cap" ? (capPerPaycheck ?? observedPerPaycheck) : observedPerPaycheck;
     const dailyBurn = monthlyBurn / 30;
+    const paySet = new Set(paydayDates);
     const out: DayPoint[] = [];
     let running = anchor.balance;
 
@@ -58,12 +73,12 @@ export function RunwayChart({
       const iso = d.toISOString().slice(0, 10);
       const dom = d.getUTCDate();
       running -= dailyBurn;
-      if (payDayOfMonth && dom === payDayOfMonth) running += income;
+      if (paySet.has(iso)) running += income;
       if (dom === 1) running -= subscriptionTotal; // billing days vary; bill once monthly
       out.push({ date: iso, balance: running, recorded: false });
     }
     return out;
-  }, [anchor, basis, configuredIncome, observedIncome, monthlyBurn, subscriptionTotal, payDayOfMonth]);
+  }, [anchor, basis, observedPerPaycheck, capPerPaycheck, monthlyBurn, subscriptionTotal, paydayDates]);
 
   const windowed = useMemo(() => {
     const days = RANGES.find((r) => r.key === range)!.days;
@@ -103,10 +118,8 @@ export function RunwayChart({
       .map((p, k) => `${k === 0 ? "M" : "L"}${x(from + k).toFixed(1)},${y(p.balance).toFixed(1)}`)
       .join(" ");
 
-  const monthlyNet =
-    (basis === "configured" ? (configuredIncome ?? 0) : observedIncome) -
-    subscriptionTotal -
-    monthlyBurn;
+  const perPaycheck = basis === "cap" ? (capPerPaycheck ?? observedPerPaycheck) : observedPerPaycheck;
+  const monthlyNet = (perPaycheck * paychecksPerYear) / 12 - subscriptionTotal - monthlyBurn;
 
   const low = projected.reduce((lo, p) => (p.balance < lo.balance ? p : lo), projected[0]);
   const breach = projected.find((p) => p.balance < floor) ?? null;
@@ -122,8 +135,20 @@ export function RunwayChart({
           <div className="mono text-[10.5px] text-[var(--muted)] mt-1.5">
             solid = recorded · dashed = projected from {money(monthlyBurn)}/mo average spend,{" "}
             {money(subscriptionTotal)}/mo subscriptions and{" "}
-            {basis === "configured" ? "the income you set" : "income actually received"}
+            {basis === "cap"
+              ? `the ${money(perPaycheck)} ceiling at max hours`
+              : `${money(perPaycheck)} per paycheck observed`}
           </div>
+          {incomeConfidence !== "high" && basis === "observed" && (
+            <div
+              className="mono text-[10px] mt-1.5"
+              style={{ color: "var(--caution)" }}
+            >
+              {incomeSampleSize === 0
+                ? "No paychecks matched for this mode — the forward line has no income in it."
+                : `Based on ${incomeSampleSize} paycheck${incomeSampleSize === 1 ? "" : "s"} — treat the slope as a rough direction, not a forecast.`}
+            </div>
+          )}
         </div>
 
         <div className="flex gap-4 items-center flex-wrap">
@@ -136,11 +161,10 @@ export function RunwayChart({
           <ToggleGroup
             label="Income"
             options={[
-              { key: "observed", label: `OBSERVED ${money(observedIncome)}` },
-              {
-                key: "configured",
-                label: `SET ${configuredIncome !== null ? money(configuredIncome) : "—"}`,
-              },
+              { key: "observed", label: `OBSERVED ${money(observedPerPaycheck)}` },
+              ...(capPerPaycheck !== null
+                ? [{ key: "cap", label: `CAP ${money(capPerPaycheck)}` }]
+                : []),
             ]}
             value={basis}
             onChange={(k) => setBasis(k as typeof basis)}

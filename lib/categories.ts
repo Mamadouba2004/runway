@@ -48,6 +48,29 @@ export function isPersonTransfer(description: string): boolean {
   return /\b(zelle|venmo|cash ?app|paypal)\b/i.test(description);
 }
 
+/**
+ * Plaid reports the stream's own cadence, but the Subscriptions total and the
+ * runway both need a per-month figure. Charging an annual $17.41 renewal every
+ * month overstated the fixed load by $15.96/mo here.
+ */
+const PER_MONTH: Record<string, number> = {
+  WEEKLY: 4.33,
+  BIWEEKLY: 2.17,
+  SEMI_MONTHLY: 2,
+  MONTHLY: 1,
+  ANNUALLY: 1 / 12,
+};
+
+export function monthlyEquivalent(amount: number, frequency: string): number {
+  // UNKNOWN keeps its face value: assuming a cadence we were not given would
+  // be inventing data. It is flagged in the UI instead.
+  return amount * (PER_MONTH[frequency] ?? 1);
+}
+
+export function isMonthlyCadence(frequency: string): boolean {
+  return frequency === "MONTHLY";
+}
+
 export function isSpendCategory(primary: string | null): boolean {
   if (!primary) return false;
   return !NON_SPEND_CATEGORIES.has(primary);

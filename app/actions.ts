@@ -56,14 +56,82 @@ export async function setCap(formData: FormData) {
 
 export async function setIncome(formData: FormData) {
   const mode = formData.get("mode");
-  const amount = parseMoney(formData.get("amount"));
-  if ((mode !== "internship" && mode !== "school") || amount === null || amount < 0) return;
+  const raw = formData.get("amount");
+  if (mode !== "internship" && mode !== "school") return;
+
+  // Empty clears the override and hands the projection back to the observed
+  // average, which is the point of having an override at all.
+  const cleared = typeof raw === "string" && raw.trim() === "";
+  const amount = parseMoney(raw);
+  if (!cleared && (amount === null || amount < 0)) return;
 
   await db
     .update(incomeModes)
-    .set({ amountPerPaycheck: amount.toFixed(2) })
+    .set({ amountPerPaycheck: cleared ? null : amount!.toFixed(2) })
     .where(eq(incomeModes.mode, mode));
   revalidatePath("/");
+  revalidatePath("/profile");
+}
+
+/** Pay schedule: cadence plus whichever anchor that cadence needs. */
+export async function setPaySchedule(formData: FormData) {
+  const mode = formData.get("mode");
+  const cadence = formData.get("cadence");
+  const anchor = formData.get("payAnchorDate");
+  const dom = formData.get("payDayOfMonth");
+  if (mode !== "internship" && mode !== "school") return;
+  if (cadence !== "biweekly" && cadence !== "monthly") return;
+
+  const dayOfMonth = typeof dom === "string" && dom.trim() ? Number(dom) : null;
+  if (dayOfMonth !== null && (!Number.isInteger(dayOfMonth) || dayOfMonth < 1 || dayOfMonth > 31)) {
+    return;
+  }
+
+  await db
+    .update(incomeModes)
+    .set({
+      cadence,
+      payAnchorDate:
+        cadence === "biweekly" && typeof anchor === "string" && anchor ? anchor : null,
+      payDayOfMonth: cadence === "monthly" ? dayOfMonth : null,
+    })
+    .where(eq(incomeModes.mode, mode));
+  revalidatePath("/");
+  revalidatePath("/profile");
+}
+
+export async function setHourly(formData: FormData) {
+  const mode = formData.get("mode");
+  const rate = parseMoney(formData.get("hourlyRate"));
+  const hours = parseMoney(formData.get("maxHoursPerWeek"));
+  if (mode !== "internship" && mode !== "school") return;
+
+  await db
+    .update(incomeModes)
+    .set({
+      hourlyRate: rate !== null && rate >= 0 ? rate.toFixed(2) : null,
+      maxHoursPerWeek: hours !== null && hours >= 0 ? hours.toFixed(2) : null,
+    })
+    .where(eq(incomeModes.mode, mode));
+  revalidatePath("/");
+  revalidatePath("/profile");
+}
+
+/** Which employer's deposits count as this mode's paycheck. */
+export async function setIncomeSource(formData: FormData) {
+  const mode = formData.get("mode");
+  const pattern = formData.get("sourcePattern");
+  if (mode !== "internship" && mode !== "school") return;
+
+  await db
+    .update(incomeModes)
+    .set({
+      sourcePattern:
+        typeof pattern === "string" && pattern.trim() ? pattern.trim() : null,
+    })
+    .where(eq(incomeModes.mode, mode));
+  revalidatePath("/");
+  revalidatePath("/profile");
 }
 
 export async function addPerson(formData: FormData) {

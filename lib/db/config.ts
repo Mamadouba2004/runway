@@ -7,10 +7,28 @@ export type Mode = "internship" | "school";
 // Seeded on first read so the app has a working configuration without a
 // separate migration step. These are the user's own numbers, not anything
 // inferred from Plaid — sandbox has no paycheck stream to detect.
-const DEFAULT_INCOME: Record<Mode, { amountPerPaycheck: string; payDayOfMonth: number }> = {
-  internship: { amountPerPaycheck: "990.26", payDayOfMonth: 22 },
-  // Work-study average, standing in until real numbers replace it.
-  school: { amountPerPaycheck: "130.02", payDayOfMonth: 22 },
+// Seeded from what the imported history actually shows: both jobs pay
+// biweekly, and each mode has its own employer. `amountPerPaycheck` is null so
+// the projection uses the observed average for that source until overridden.
+const DEFAULT_INCOME: Record<Mode, typeof incomeModes.$inferInsert> = {
+  internship: {
+    mode: "internship",
+    amountPerPaycheck: null,
+    cadence: "biweekly",
+    payAnchorDate: "2026-08-04",
+    sourcePattern: "RESEARCH FOUNDAT",
+    hourlyRate: "22.00",
+    maxHoursPerWeek: "34.00",
+  },
+  school: {
+    mode: "school",
+    amountPerPaycheck: null,
+    cadence: "biweekly",
+    payAnchorDate: "2026-08-04",
+    sourcePattern: "WORK STUDY",
+    hourlyRate: "22.00",
+    maxHoursPerWeek: "34.00",
+  },
 };
 
 export async function getSettings() {
@@ -35,7 +53,7 @@ export async function getIncomeModes() {
   if (missing.length > 0) {
     await db
       .insert(incomeModes)
-      .values(missing.map((m) => ({ mode: m, ...DEFAULT_INCOME[m] })))
+      .values(missing.map((m) => DEFAULT_INCOME[m]))
       .onConflictDoNothing();
     return db.select().from(incomeModes);
   }

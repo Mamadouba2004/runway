@@ -85,8 +85,11 @@ export function project(
   from: DayPoint,
   charges: RecurringCharge[],
   days: number,
-  dailyBurn = 0
+  dailyBurn = 0,
+  /** Explicit payday dates with amounts — biweekly cannot be a day-of-month. */
+  paydays: { date: string; amount: number }[] = []
 ): DayPoint[] {
+  const payByDate = new Map(paydays.map((p) => [p.date, p.amount]));
   const points: DayPoint[] = [];
   let running = from.balance;
 
@@ -98,10 +101,32 @@ export function project(
     for (const c of charges) {
       if (c.dayOfMonth === dom) running += c.amount;
     }
+    running += payByDate.get(iso) ?? 0;
 
     points.push({ date: iso, balance: running, recorded: false });
   }
   return points;
+}
+
+export type Band = { date: string; low: number; high: number };
+
+/**
+ * Paychecks are not identical, so a single line overstates certainty. Running
+ * the same projection at the observed low and high paycheck gives the range the
+ * balance plausibly occupies, drawn as a band rather than implied precision.
+ */
+export function projectBand(
+  from: DayPoint,
+  charges: RecurringCharge[],
+  days: number,
+  dailyBurn: number,
+  paydayDates: string[],
+  lowAmount: number,
+  highAmount: number
+): Band[] {
+  const low = project(from, charges, days, dailyBurn, paydayDates.map((date) => ({ date, amount: lowAmount })));
+  const high = project(from, charges, days, dailyBurn, paydayDates.map((date) => ({ date, amount: highAmount })));
+  return low.map((p, i) => ({ date: p.date, low: p.balance, high: high[i].balance }));
 }
 
 /**
