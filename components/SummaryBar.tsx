@@ -4,7 +4,9 @@ import { money } from "@/lib/format";
 
 type Props = {
   balance: number;
-  primaryAccountName: string | null;
+  checkingBalance: number;
+  savingsBalance: number;
+  depositoryCount: number;
   institutionName: string | null;
   lastRecordedDate: string | null;
   safeToSpend: number;
@@ -20,7 +22,9 @@ const figure = "mono text-[27px] font-semibold mt-1.5 tracking-[-0.01em]";
 
 export function SummaryBar({
   balance,
-  primaryAccountName,
+  checkingBalance,
+  savingsBalance,
+  depositoryCount,
   institutionName,
   lastRecordedDate,
   safeToSpend,
@@ -32,14 +36,14 @@ export function SummaryBar({
 }: Props) {
   return (
     <div className="flex items-stretch border-b-2 border-[var(--rule2)] flex-wrap">
-      <div className={`${cell} min-w-[206px]`}>
+      <div className={`${cell} min-w-[232px]`}>
         <div className="label">
-          {primaryAccountName ?? "No account"}
-          {institutionName ? ` — ${institutionName}` : ""}
+          {institutionName ?? "Bank"} · {depositoryCount} account
+          {depositoryCount === 1 ? "" : "s"}
         </div>
         <div className={figure}>{money(balance)}</div>
         <div className="mono text-[9.5px] text-[var(--faint)] mt-1">
-          {lastRecordedDate ? `as of ${lastRecordedDate}` : "no records"}
+          {money(checkingBalance)} checking · {money(savingsBalance)} savings
         </div>
       </div>
 
@@ -52,7 +56,7 @@ export function SummaryBar({
           {money(safeToSpend)}
         </div>
         <div className="mono text-[9.5px] text-[var(--faint)] mt-1">
-          balance − {money(scheduled)} scheduled − {money(floor)} floor
+          checking − {money(scheduled)} scheduled − {money(floor)} floor
         </div>
       </div>
 
@@ -66,7 +70,7 @@ export function SummaryBar({
         </div>
       </div>
 
-      <FloorTile balance={balance} floor={floor} scheduled={scheduled} />
+      <FloorTile checkingBalance={checkingBalance} floor={floor} scheduled={scheduled} />
 
       <div className="flex-1 px-5 py-3.5 flex items-center justify-end gap-3">
         <div className="label">Mode</div>
@@ -95,15 +99,17 @@ export function SummaryBar({
  * over/under state and a bar for the margin.
  */
 function FloorTile({
-  balance,
+  checkingBalance,
   floor,
   scheduled,
 }: {
-  balance: number;
+  checkingBalance: number;
   floor: number;
   scheduled: number;
 }) {
-  const afterScheduled = balance - scheduled;
+  // Measured against checking, matching "safe to spend". Using the combined
+  // balance here would have the two tiles disagree about the same question.
+  const afterScheduled = checkingBalance - scheduled;
   const margin = afterScheduled - floor;
   const under = margin < 0;
 
@@ -148,8 +154,8 @@ function FloorTile({
 
       <div className="mono text-[9.5px] text-[var(--faint)] mt-1.5">
         {under
-          ? `${money(afterScheduled)} left after scheduled — under floor`
-          : `${money(afterScheduled)} left after scheduled — above floor`}
+          ? `${money(afterScheduled)} in checking after scheduled — under floor`
+          : `${money(afterScheduled)} in checking after scheduled — above floor`}
       </div>
     </div>
   );

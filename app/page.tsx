@@ -32,7 +32,9 @@ export default async function Home() {
       <div className="mx-auto max-w-[1440px] border-2 border-[var(--rule2)] bg-[var(--surface)]">
         <SummaryBar
           balance={data.balance}
-          primaryAccountName={data.primaryAccountName}
+          checkingBalance={data.checkingBalance}
+          savingsBalance={data.savingsBalance}
+          depositoryCount={data.depositoryCount}
           institutionName={data.institutionName}
           lastRecordedDate={data.lastRecordedDate}
           safeToSpend={data.safeToSpend}

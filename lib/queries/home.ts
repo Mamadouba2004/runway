@@ -63,10 +63,20 @@ export async function getHomeData() {
   const today = toISODate(new Date());
 
   // Only depository accounts hold spendable cash; credit/loan/investment
-  // balances would badly distort "safe to spend".
+  // balances would badly distort the figures below.
   const depository = acctRows.filter((a) => a.type === "depository");
-  const balance = depository.reduce((s, a) => s + Number(a.currentBalance ?? 0), 0);
-  const primaryAccount = depository.find((a) => a.subtype === "checking") ?? depository[0];
+  const sumOf = (rows: typeof depository) =>
+    rows.reduce((s, a) => s + Number(a.currentBalance ?? 0), 0);
+
+  // Two different questions, deliberately on two different bases:
+  //  - `balance` (combined) drives the runway. Chase auto-transfers between
+  //    checking and savings for overdraft protection, so for "will I survive"
+  //    they are one pool.
+  //  - `safeToSpend` uses checking alone. "What can I spend right now" should
+  //    not quietly hand you the savings account.
+  const checkingBalance = sumOf(depository.filter((a) => a.subtype === "checking"));
+  const savingsBalance = sumOf(depository.filter((a) => a.subtype !== "checking"));
+  const balance = checkingBalance + savingsBalance;
 
   const subs: Subscription[] = subRows
     .filter((s) => !isPersonTransfer(s.name))
@@ -208,11 +218,11 @@ export async function getHomeData() {
     mode,
     floor,
     balance,
-    primaryAccountName: primaryAccount
-      ? `${primaryAccount.name}${primaryAccount.mask ? ` •••• ${primaryAccount.mask}` : ""}`
-      : null,
+    checkingBalance,
+    savingsBalance,
+    depositoryCount: depository.length,
     institutionName: items[0]?.institutionName ?? null,
-    safeToSpend: balance - scheduled - floor,
+    safeToSpend: checkingBalance - scheduled - floor,
     scheduled,
     daysToPay,
     incomeAmount: income ? Number(income.amountPerPaycheck) : null,
