@@ -46,3 +46,6 @@ node_modules.broken/
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Local HTTPS dev certs (private keys) — never commit
+/certificates

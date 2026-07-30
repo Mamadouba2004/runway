@@ -19,6 +19,10 @@ export async function POST() {
       products: [Products.Transactions],
       country_codes: [CountryCode.Us],
       language: "en",
+      // Plaid defaults to 90 days and this CANNOT be changed once Transactions
+      // is added to an Item — it has to be right before the first link. 730 is
+      // the practical maximum; recurring detection wants >= 180 regardless.
+      transactions: { days_requested: 730 },
       ...(redirectUri ? { redirect_uri: redirectUri } : {}),
     });
 
