@@ -37,7 +37,7 @@ export default async function Home() {
           savingsBalance={data.savingsBalance}
           institutionName={data.institutionName}
           lastRecordedDate={data.lastRecordedDate}
-          safeToSpend={data.safeToSpend}
+          sts={data.sts}
           setAsidePending={data.setAside.pending}
           setAsideRate={data.setAside.rate}
           savingsMoved180d={data.savingsMoved180d}
@@ -87,6 +87,7 @@ export default async function Home() {
             categories={data.categories}
             mode={data.mode}
             incomeAmount={data.incomeAmount}
+            incomeOverride={data.incomeOverride}
           />
           <Subscriptions
             subscriptions={data.subscriptions}

@@ -37,6 +37,20 @@ export type IncomeStats = {
  */
 const NOT_PAYROLL = /interest|tax ?ref|treas 310|nysttaxrfd|fid bkg|moneyline/i;
 
+/**
+ * Plaid already classifies deposits: INCOME_SALARY and INCOME_CONTRACTOR are
+ * earnings, INCOME_TAX_REFUND and INCOME_INTEREST_EARNED are not. Prefer that
+ * over guessing from the description; fall back to the name only when the
+ * detailed category is missing.
+ */
+const PAYROLL_DETAILED = new Set(["INCOME_SALARY", "INCOME_CONTRACTOR", "INCOME_WAGES"]);
+
+export function isPayrollTxn(detailed: string | null, name: string): boolean {
+  if (detailed) return PAYROLL_DETAILED.has(detailed);
+  return !NOT_PAYROLL.test(name);
+}
+
+/** Name-only check, kept for callers without the detailed category to hand. */
 export function isPayroll(name: string): boolean {
   return !NOT_PAYROLL.test(name);
 }
@@ -63,7 +77,7 @@ export function incomeStats(
   const matches = txns
     .filter((t) => t.personalFinanceCategoryPrimary === "INCOME")
     .filter((t) => Number(t.amount) > 0)
-    .filter((t) => isPayroll(t.name))
+    .filter((t) => isPayrollTxn(t.personalFinanceCategoryDetailed, t.name))
     .filter((t) => t.date >= cutoff)
     .filter((t) =>
       sourcePattern ? t.name.toLowerCase().includes(sourcePattern.toLowerCase()) : true
@@ -92,19 +106,29 @@ export function incomeStats(
   const MIN_SAMPLE_TO_ANNUALISE = 3;
   const perYear = paychecksPerYear(opts.cadence ?? "biweekly");
 
-  // Fallback: every real paycheck in the window, whatever the employer,
-  // expressed per-cheque so it drops into the projection unchanged.
-  const fallbackWindow = new Date(Date.now() - 180 * 86_400_000).toISOString().slice(0, 10);
-  const allPayroll = txns
+  // Fallback only when THIS source has produced nothing at all. Blending other
+  // employers was worse than a small sample: it averaged a live $990.26 job
+  // against a work-study job that had already ended, and produced $218.81.
+  // One paycheck from the current employer is the best available estimate of
+  // the next one from that employer; the honest problem with n=1 is confidence,
+  // not the point estimate, so that is surfaced rather than silently corrected.
+  const RECENT_EMPLOYMENT_DAYS = 90;
+  const recentWindow = new Date(Date.now() - RECENT_EMPLOYMENT_DAYS * 86_400_000)
+    .toISOString()
+    .slice(0, 10);
+  const recentPayroll = txns
     .filter((t) => t.personalFinanceCategoryPrimary === "INCOME")
     .filter((t) => Number(t.amount) > 0)
-    .filter((t) => isPayroll(t.name))
-    .filter((t) => t.date >= fallbackWindow);
-  const allPayrollMonthly =
-    allPayroll.reduce((s, t) => s + Number(t.amount), 0) / 6;
-  const fallbackPerPaycheck = (allPayrollMonthly * 12) / perYear;
+    .filter((t) => isPayrollTxn(t.personalFinanceCategoryDetailed, t.name))
+    .filter((t) => t.date >= recentWindow);
+  const fallbackPerPaycheck =
+    recentPayroll.length > 0
+      ? (recentPayroll.reduce((s, t) => s + Number(t.amount), 0) /
+          (RECENT_EMPLOYMENT_DAYS / 30)) *
+        (12 / perYear)
+      : 0;
 
-  const useFallback = count < MIN_SAMPLE_TO_ANNUALISE;
+  const useFallback = count === 0;
 
   return {
     projectable: useFallback ? fallbackPerPaycheck : mean,

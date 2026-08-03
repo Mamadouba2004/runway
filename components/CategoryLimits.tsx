@@ -16,11 +16,12 @@ type Props = {
   categories: Category[];
   mode: "internship" | "school";
   incomeAmount: number | null;
+  incomeOverride: boolean;
 };
 
 const grid = "grid grid-cols-[1.4fr_108px_1fr_1.3fr] gap-x-3.5 items-center";
 
-export function CategoryLimits({ categories, mode, incomeAmount }: Props) {
+export function CategoryLimits({ categories, mode, incomeAmount, incomeOverride }: Props) {
   const totalCapped = categories.reduce((s, c) => s + (c.cap ?? 0), 0);
 
   return (
@@ -113,6 +114,15 @@ export function CategoryLimits({ categories, mode, incomeAmount }: Props) {
           <span className="mono text-[9.5px] tracking-[0.12em] uppercase text-[var(--muted)]">
             Income / paycheck
           </span>
+          {incomeOverride && (
+            <span
+              className="mono text-[8.5px] tracking-[0.1em] uppercase px-1.5 py-0.5"
+              style={{ background: "var(--caution-soft)", color: "var(--caution)" }}
+              title="A manual value is set and will not update as new paychecks sync in. Clear the field to resume tracking the observed average."
+            >
+              override active
+            </span>
+          )}
           <span className="mono text-[14px]">$</span>
           <AutoSubmitInput
             name="amount"
@@ -128,8 +138,11 @@ export function CategoryLimits({ categories, mode, incomeAmount }: Props) {
       </div>
 
       <div className="mono text-[10.5px] text-[var(--faint)] mt-2.5 leading-relaxed">
-        Spent figures cover the trailing 30 days and come only from charges present in the
-        imported records. Categories with no imported charges read “no data” rather than
+        {incomeOverride
+          ? "Income is a manual override — it will not update as new paychecks sync in. Clear the field above to resume tracking the observed average."
+          : "Income tracks the observed average automatically."}
+        {" "}Spent figures cover the trailing 30 days and come only from charges present in
+        the imported records. Categories with no imported charges read “no data” rather than
         $0.00. Transfers between your own accounts are excluded.
       </div>
     </div>

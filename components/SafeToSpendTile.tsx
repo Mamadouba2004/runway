@@ -1,11 +1,9 @@
 import { money } from "@/lib/format";
 
+import type { SafeToSpend } from "@/lib/safe-to-spend";
+
 type Props = {
-  safeToSpend: number;
-  checkingBalance: number;
-  scheduled: number;
-  floor: number;
-  setAsidePending: number;
+  sts: SafeToSpend;
   setAsideRate: number;
   daysToPay: number | null;
 };
@@ -19,19 +17,10 @@ type Props = {
  * "$18/day for 8 days" is something you can hold in your head at a checkout in
  * a way "$142" is not.
  */
-export function SafeToSpendTile({
-  safeToSpend,
-  checkingBalance,
-  scheduled,
-  floor,
-  setAsidePending,
-  setAsideRate,
-  daysToPay,
-}: Props) {
+export function SafeToSpendTile({ sts, setAsideRate, daysToPay }: Props) {
+  const { spendable, shortfall, checking, scheduled, floor, setAside } = sts;
   const days = daysToPay && daysToPay > 0 ? daysToPay : 1;
-  const spendable = Math.max(0, safeToSpend);
   const perDay = spendable / days;
-  const shortfall = safeToSpend < 0 ? Math.abs(safeToSpend) : 0;
 
   const state: "clear" | "tight" | "empty" =
     spendable <= 0 ? "empty" : perDay < 5 ? "tight" : "clear";
@@ -80,12 +69,12 @@ export function SafeToSpendTile({
             <br />
           </>
         )}
-        {money(checkingBalance)} checking − {money(scheduled)} scheduled −{" "}
+        {money(checking)} checking − {money(scheduled)} scheduled −{" "}
         {money(floor)} floor
-        {setAsidePending > 0 && (
+        {setAside > 0 && (
           <>
             {" "}
-            − {money(setAsidePending)} set aside ({Math.round(setAsideRate * 100)}%)
+            − {money(setAside)} set aside ({Math.round(setAsideRate * 100)}%)
           </>
         )}
       </div>

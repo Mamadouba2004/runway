@@ -3,13 +3,14 @@ import { BalanceTile } from "@/components/BalanceTile";
 import { SafeToSpendTile } from "@/components/SafeToSpendTile";
 import { AutoSubmitInput } from "@/components/AutoSubmitInput";
 import { money } from "@/lib/format";
+import type { SafeToSpend } from "@/lib/safe-to-spend";
 
 type Props = {
   checkingBalance: number;
   savingsBalance: number;
   institutionName: string | null;
   lastRecordedDate: string | null;
-  safeToSpend: number;
+  sts: SafeToSpend;
   setAsidePending: number;
   setAsideRate: number;
   savingsMoved180d: number;
@@ -29,7 +30,7 @@ export function SummaryBar({
   savingsBalance,
   institutionName,
   lastRecordedDate,
-  safeToSpend,
+  sts,
   setAsidePending,
   setAsideRate,
   savingsMoved180d,
@@ -49,15 +50,7 @@ export function SummaryBar({
         institutionName={institutionName}
       />
 
-      <SafeToSpendTile
-        safeToSpend={safeToSpend}
-        checkingBalance={checkingBalance}
-        scheduled={scheduled}
-        floor={floor}
-        setAsidePending={setAsidePending}
-        setAsideRate={setAsideRate}
-        daysToPay={daysToPay}
-      />
+      <SafeToSpendTile sts={sts} setAsideRate={setAsideRate} daysToPay={daysToPay} />
 
       <div className={`${cell} min-w-[178px]`}>
         <div className="label">Next deposit</div>
@@ -67,7 +60,7 @@ export function SummaryBar({
         </div>
       </div>
 
-      <FloorTile checkingBalance={checkingBalance} floor={floor} scheduled={scheduled} />
+      <FloorTile sts={sts} />
 
       <div className="flex-1 px-5 py-3.5 flex items-center justify-end gap-3">
         <div className="label">Mode</div>
@@ -95,23 +88,12 @@ export function SummaryBar({
  * scheduled charges clear, measured against the floor, with an explicit
  * over/under state and a bar for the margin.
  */
-function FloorTile({
-  checkingBalance,
-  floor,
-  scheduled,
-}: {
-  checkingBalance: number;
-  floor: number;
-  scheduled: number;
-}) {
-  // Measured against checking, matching "safe to spend". Using the combined
-  // balance here would have the two tiles disagree about the same question.
-  const afterScheduled = checkingBalance - scheduled;
-  const margin = afterScheduled - floor;
-  const under = margin < 0;
-
-  // How much of the floor the projected balance still covers.
-  const coverage = floor > 0 ? Math.max(0, Math.min(afterScheduled / floor, 1)) : 1;
+function FloorTile({ sts }: { sts: SafeToSpend }) {
+  // Reads the same computed value as the headline. These previously diverged by
+  // exactly the set-aside term.
+  const { beforeFloor, floor, shortfall, amount } = sts;
+  const under = !sts.floorIntact;
+  const coverage = floor > 0 ? Math.max(0, Math.min(beforeFloor / floor, 1)) : 1;
 
   return (
     <div className={`${cell} min-w-[232px]`}>
@@ -153,10 +135,10 @@ function FloorTile({
 
       <div className="mono text-[9.5px] text-[var(--faint)] mt-1.5 leading-relaxed">
         {under
-          ? `${money(Math.abs(margin))} short of the ${money(floor)} buffer`
-          : `${money(margin)} clear of the ${money(floor)} buffer`}
+          ? `${money(shortfall)} short of the ${money(floor)} buffer`
+          : `${money(amount)} clear of the ${money(floor)} buffer`}
         <br />
-        {money(afterScheduled)} in checking after scheduled
+        {money(beforeFloor)} left after scheduled + set-aside
       </div>
     </div>
   );

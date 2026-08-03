@@ -19,6 +19,7 @@ import {
 } from "@/lib/categories";
 import { incomeStats, upcomingPaydays } from "@/lib/income";
 import { computeSetAside, isTransferToSavings } from "@/lib/savings";
+import { computeSafeToSpend } from "@/lib/safe-to-spend";
 import {
   addDays,
   daysBetween,
@@ -270,6 +271,14 @@ export async function getHomeData() {
     periodStart
   );
 
+  // One definition, read by every tile that asks "how much room is left".
+  const sts = computeSafeToSpend({
+    checking: checkingBalance,
+    scheduled,
+    setAside: setAside.pending,
+    floor,
+  });
+
   const nextPayday = upcomingPaydays(
     today,
     income?.cadence ?? "biweekly",
@@ -289,7 +298,8 @@ export async function getHomeData() {
     depositoryCount: depository.length,
     institutionName: items[0]?.institutionName ?? null,
     lastSyncedAt: items[0]?.lastSyncedAt?.toISOString() ?? null,
-    safeToSpend: checkingBalance - scheduled - floor - setAside.pending,
+    safeToSpend: sts.amount,
+    sts,
     setAside,
     savingsMoved180d: txnRows
       .filter((t) => Number(t.amount) < 0 && isTransferToSavings(t.name))
