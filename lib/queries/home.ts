@@ -142,13 +142,14 @@ export async function getHomeData() {
     hourlyRate: income?.hourlyRate ? Number(income.hourlyRate) : null,
     maxHoursPerWeek: income?.maxHoursPerWeek ? Number(income.maxHoursPerWeek) : null,
     windowDays: 365,
+    cadence: income?.cadence ?? "biweekly",
   });
 
   // A manual override wins; otherwise project from what actually landed.
   const perPaycheck =
     income?.amountPerPaycheck !== null && income?.amountPerPaycheck !== undefined
       ? Number(income.amountPerPaycheck)
-      : stats.mean;
+      : stats.projectable;
 
   const paydayDates = upcomingPaydays(
     anchor.date,
@@ -280,7 +281,8 @@ export async function getHomeData() {
     breach,
     dailyBurn,
     monthlyBurn: dailyBurn * 30,
-    observedMonthlyIncome: (stats.mean * 26) / 12,
+    observedMonthlyIncome:
+      (stats.projectable * (income?.cadence === "monthly" ? 12 : 26)) / 12,
     categories,
     subscriptions: subs,
     subscriptionTotal: scheduled,
