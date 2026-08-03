@@ -96,6 +96,13 @@ export const settings = pgTable("settings", {
   floorAmount: numeric("floor_amount", { precision: 14, scale: 2 })
     .notNull()
     .default("100.00"),
+  // Fraction of every deposit treated as spoken-for the moment it lands,
+  // before any transfer actually posts. Simple Bank's Goals worked this way.
+  savingsSetAsideRate: numeric("savings_set_aside_rate", { precision: 5, scale: 4 })
+    .notNull()
+    .default("0.3500"),
+  // "set" uses the rate above; "observed" derives it from detected transfers.
+  setAsideBasis: text("set_aside_basis").notNull().default("set"),
 });
 
 // Income is per-mode because the employer changes with the mode: work-study

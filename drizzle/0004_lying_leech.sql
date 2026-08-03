@@ -1,0 +1,2 @@
+ALTER TABLE "settings" ADD COLUMN "savings_set_aside_rate" numeric(5, 4) DEFAULT '0.3500' NOT NULL;--> statement-breakpoint
+ALTER TABLE "settings" ADD COLUMN "set_aside_basis" text DEFAULT 'set' NOT NULL;

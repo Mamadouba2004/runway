@@ -3,72 +3,71 @@
 import { useState } from "react";
 import { money } from "@/lib/format";
 
-type View = "both" | "checking" | "savings";
-
 /**
- * Both accounts by default, with a toggle to look at one at a time. Client
- * state rather than a server round-trip — this only changes what is displayed,
- * not what anything is calculated from.
+ * Checking is the whole world for spending decisions. Savings is shown here
+ * only as a labelled figure so it is visible without being available — it feeds
+ * nothing below: not safe-to-spend, not the floor check, not the runway.
+ *
+ * There is deliberately no "both" view. A combined number would reintroduce
+ * exactly the mental backstop this model exists to remove.
  */
 export function BalanceTile({
   checkingBalance,
   savingsBalance,
-  depositoryCount,
+  savingsMoved180d,
   institutionName,
 }: {
   checkingBalance: number;
   savingsBalance: number;
-  depositoryCount: number;
+  savingsMoved180d: number;
   institutionName: string | null;
 }) {
-  const [view, setView] = useState<View>("both");
-
-  const shown =
-    view === "checking"
-      ? checkingBalance
-      : view === "savings"
-        ? savingsBalance
-        : checkingBalance + savingsBalance;
-
-  const options: { key: View; label: string }[] = [
-    { key: "both", label: "BOTH" },
-    { key: "checking", label: "CHECKING" },
-    { key: "savings", label: "SAVINGS" },
-  ];
+  const [showSavings, setShowSavings] = useState(false);
 
   return (
-    <div className="px-5 py-4 border-r border-[var(--rule)] min-w-[252px]">
+    <div className="px-5 py-4 border-r border-[var(--rule)] min-w-[236px]">
       <div className="label">
-        {institutionName ?? "Bank"} ·{" "}
-        {view === "both"
-          ? `${depositoryCount} account${depositoryCount === 1 ? "" : "s"}`
-          : view}
+        {institutionName ?? "Bank"} · {showSavings ? "savings" : "checking"}
       </div>
 
-      <div className="mono text-[27px] font-semibold mt-1.5 tracking-[-0.01em]">
-        {money(shown)}
+      <div
+        className="mono text-[27px] font-semibold mt-1.5 tracking-[-0.01em]"
+        style={showSavings ? { color: "var(--muted)" } : undefined}
+      >
+        {money(showSavings ? savingsBalance : checkingBalance)}
       </div>
 
       <div className="flex border border-[var(--rule2)] mt-2 w-fit">
-        {options.map((o) => (
+        {[
+          { key: false, label: "CHECKING" },
+          { key: true, label: "SAVINGS" },
+        ].map((o) => (
           <button
-            key={o.key}
+            key={String(o.key)}
             type="button"
-            onClick={() => setView(o.key)}
-            aria-pressed={view === o.key}
-            className={`btn ${view === o.key ? "btn-on" : "btn-off"} px-2 py-1 text-[9px] tracking-[0.08em]`}
+            onClick={() => setShowSavings(o.key)}
+            aria-pressed={showSavings === o.key}
+            className={`btn ${showSavings === o.key ? "btn-on" : "btn-off"} px-2 py-1 text-[9px] tracking-[0.08em]`}
           >
             {o.label}
           </button>
         ))}
       </div>
 
-      <div className="mono text-[9.5px] text-[var(--faint)] mt-1.5">
-        {view === "both"
-          ? `${money(checkingBalance)} checking · ${money(savingsBalance)} savings`
-          : view === "checking"
-            ? "spendable — what safe-to-spend uses"
-            : "held back — still counts toward the runway"}
+      <div className="mono text-[9.5px] text-[var(--faint)] mt-1.5 leading-relaxed">
+        {showSavings ? (
+          <>
+            set aside — not counted below
+            {savingsMoved180d > 0 && (
+              <>
+                <br />
+                {money(savingsMoved180d)} moved in 180d
+              </>
+            )}
+          </>
+        ) : (
+          "everything below is checking only"
+        )}
       </div>
     </div>
   );

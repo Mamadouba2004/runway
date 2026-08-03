@@ -1,15 +1,18 @@
 import { setFloor, setMode } from "@/app/actions";
 import { BalanceTile } from "@/components/BalanceTile";
+import { SafeToSpendTile } from "@/components/SafeToSpendTile";
 import { AutoSubmitInput } from "@/components/AutoSubmitInput";
 import { money } from "@/lib/format";
 
 type Props = {
   checkingBalance: number;
   savingsBalance: number;
-  depositoryCount: number;
   institutionName: string | null;
   lastRecordedDate: string | null;
   safeToSpend: number;
+  setAsidePending: number;
+  setAsideRate: number;
+  savingsMoved180d: number;
   scheduled: number;
   floor: number;
   daysToPay: number | null;
@@ -24,10 +27,12 @@ const figure = "mono text-[27px] font-semibold mt-1.5 tracking-[-0.01em]";
 export function SummaryBar({
   checkingBalance,
   savingsBalance,
-  depositoryCount,
   institutionName,
   lastRecordedDate,
   safeToSpend,
+  setAsidePending,
+  setAsideRate,
+  savingsMoved180d,
   scheduled,
   floor,
   daysToPay,
@@ -40,22 +45,19 @@ export function SummaryBar({
       <BalanceTile
         checkingBalance={checkingBalance}
         savingsBalance={savingsBalance}
-        depositoryCount={depositoryCount}
+        savingsMoved180d={savingsMoved180d}
         institutionName={institutionName}
       />
 
-      <div className={`${cell} min-w-[238px]`}>
-        <div className="label">Safe to spend now</div>
-        <div
-          className={figure}
-          style={{ color: safeToSpend < 0 ? "var(--alert)" : "var(--ink)" }}
-        >
-          {money(safeToSpend)}
-        </div>
-        <div className="mono text-[9.5px] text-[var(--faint)] mt-1">
-          checking − {money(scheduled)} scheduled − {money(floor)} floor
-        </div>
-      </div>
+      <SafeToSpendTile
+        safeToSpend={safeToSpend}
+        checkingBalance={checkingBalance}
+        scheduled={scheduled}
+        floor={floor}
+        setAsidePending={setAsidePending}
+        setAsideRate={setAsideRate}
+        daysToPay={daysToPay}
+      />
 
       <div className={`${cell} min-w-[178px]`}>
         <div className="label">Next deposit</div>
@@ -130,11 +132,13 @@ function FloorTile({
         </form>
       </div>
 
+      {/* A signed margin is arithmetic. What matters is whether the buffer is
+          intact, so the state leads and the gap sits underneath. */}
       <div
-        className={figure}
+        className="mono text-[22px] font-semibold mt-1.5 tracking-[-0.01em]"
         style={{ color: under ? "var(--alert)" : "var(--pos)" }}
       >
-        {under ? `−${money(Math.abs(margin))}` : `+${money(margin)}`}
+        {under ? "Below floor" : "Intact"}
       </div>
 
       <div className="h-1.5 bg-[var(--panel)] relative overflow-hidden mt-2">
@@ -147,10 +151,12 @@ function FloorTile({
         />
       </div>
 
-      <div className="mono text-[9.5px] text-[var(--faint)] mt-1.5">
+      <div className="mono text-[9.5px] text-[var(--faint)] mt-1.5 leading-relaxed">
         {under
-          ? `${money(afterScheduled)} in checking after scheduled — under floor`
-          : `${money(afterScheduled)} in checking after scheduled — above floor`}
+          ? `${money(Math.abs(margin))} short of the ${money(floor)} buffer`
+          : `${money(margin)} clear of the ${money(floor)} buffer`}
+        <br />
+        {money(afterScheduled)} in checking after scheduled
       </div>
     </div>
   );

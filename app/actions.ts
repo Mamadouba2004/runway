@@ -39,6 +39,34 @@ export async function setFloor(formData: FormData) {
   revalidatePath("/");
 }
 
+export async function setSavingsRate(formData: FormData) {
+  const raw = formData.get("rate");
+  const basis = formData.get("basis");
+
+  if (typeof basis === "string" && (basis === "set" || basis === "observed")) {
+    await getSettings();
+    await db.update(settings).set({ setAsideBasis: basis }).where(eq(settings.id, 1));
+  }
+
+  if (typeof raw === "string" && raw.trim()) {
+    // Accept "35" or "0.35" — a percent field that rejects the percent is rude.
+    const n = Number(raw.replace(/[^0-9.]/g, ""));
+    if (Number.isFinite(n)) {
+      const rate = n > 1 ? n / 100 : n;
+      if (rate >= 0 && rate <= 1) {
+        await getSettings();
+        await db
+          .update(settings)
+          .set({ savingsSetAsideRate: rate.toFixed(4) })
+          .where(eq(settings.id, 1));
+      }
+    }
+  }
+
+  revalidatePath("/");
+  revalidatePath("/profile");
+}
+
 export async function setCap(formData: FormData) {
   const category = formData.get("category");
   const amount = parseMoney(formData.get("cap"));

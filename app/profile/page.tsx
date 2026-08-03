@@ -5,7 +5,16 @@ import { incomeModes, transactions } from "@/lib/db/schema";
 import { getSettings } from "@/lib/db/config";
 import { incomeStats, upcomingPaydays } from "@/lib/income";
 import { AutoSubmitInput } from "@/components/AutoSubmitInput";
-import { setFloor, setHourly, setIncome, setIncomeSource, setMode, setPaySchedule } from "@/app/actions";
+import {
+  setFloor,
+  setHourly,
+  setIncome,
+  setIncomeSource,
+  setMode,
+  setPaySchedule,
+  setSavingsRate,
+} from "@/app/actions";
+import { computeSetAside } from "@/lib/savings";
 import { money, shortDate } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -18,6 +27,14 @@ export default async function ProfilePage() {
   ]);
 
   const today = new Date().toISOString().slice(0, 10);
+
+  // Same computation the Home view uses, so the two cannot disagree.
+  const savings = computeSetAside(
+    txns,
+    Number(settings.savingsSetAsideRate),
+    settings.setAsideBasis === "observed" ? "observed" : "set",
+    new Date(Date.now() - 14 * 86_400_000).toISOString().slice(0, 10)
+  );
 
   return (
     <main className="p-6">
@@ -69,6 +86,73 @@ export default async function ProfilePage() {
                 Set floor
               </button>
             </form>
+          </div>
+        </section>
+
+        <section className="px-5 py-4 border-b-2 border-[var(--rule2)]">
+          <div className="flex justify-between items-baseline">
+            <h2 className="h-sec text-[14px]">Savings set-aside</h2>
+            <span className="mono text-[10px] text-[var(--muted)]">
+              spoken for the moment a deposit lands
+            </span>
+          </div>
+
+          <p className="text-[12.5px] leading-normal text-[var(--muted)] mt-2 max-w-[68ch]">
+            A share of every deposit is treated as unavailable immediately, before the
+            transfer posts. Savings never enters safe-to-spend, the floor check, or the
+            runway.
+          </p>
+
+          <div className="flex items-end gap-6 mt-3 flex-wrap">
+            <form action={setSavingsRate} className="flex items-baseline gap-1.5">
+              <span className="mono text-[9.5px] tracking-[0.12em] uppercase text-[var(--muted)]">
+                Rate
+              </span>
+              <AutoSubmitInput
+                name="rate"
+                defaultValue={(Number(settings.savingsSetAsideRate) * 100).toFixed(0)}
+                inputMode="decimal"
+                aria-label="Savings set-aside percent"
+                className="input text-[14px] w-[58px]"
+              />
+              <span className="mono text-[12px] text-[var(--faint)]">%</span>
+              <button type="submit" className="sr-only" tabIndex={-1}>
+                Set rate
+              </button>
+            </form>
+
+            <div>
+              <div className="mono text-[9.5px] tracking-[0.12em] uppercase text-[var(--muted)] mb-1.5">
+                Basis
+              </div>
+              <div className="flex border border-[var(--rule2)]">
+                {(["set", "observed"] as const).map((b) => (
+                  <form action={setSavingsRate} key={b}>
+                    <input type="hidden" name="basis" value={b} />
+                    <button
+                      type="submit"
+                      className={`btn ${settings.setAsideBasis === b ? "btn-on" : "btn-off"} px-3 py-1.5 text-[10px] tracking-[0.1em] uppercase`}
+                    >
+                      {b === "set"
+                        ? `SET ${(Number(settings.savingsSetAsideRate) * 100).toFixed(0)}%`
+                        : `OBSERVED ${
+                            savings.observedRate !== null
+                              ? (savings.observedRate * 100).toFixed(0) + "%"
+                              : "n/a"
+                          }`}
+                    </button>
+                  </form>
+                ))}
+              </div>
+            </div>
+
+            <div className="mono text-[10px] text-[var(--muted)] leading-relaxed">
+              this period: {money(savings.depositsThisPeriod)} in ·{" "}
+              {money(savings.transferredThisPeriod)} moved ·{" "}
+              <strong>{money(savings.pending)} still spoken for</strong>
+              <br />
+              observed rate ignores transfers under $20 (round-ups, not saving)
+            </div>
           </div>
         </section>
 

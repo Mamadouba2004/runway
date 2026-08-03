@@ -35,10 +35,12 @@ export default async function Home() {
         <SummaryBar
           checkingBalance={data.checkingBalance}
           savingsBalance={data.savingsBalance}
-          depositoryCount={data.depositoryCount}
           institutionName={data.institutionName}
           lastRecordedDate={data.lastRecordedDate}
           safeToSpend={data.safeToSpend}
+          setAsidePending={data.setAside.pending}
+          setAsideRate={data.setAside.rate}
+          savingsMoved180d={data.savingsMoved180d}
           scheduled={data.scheduled}
           floor={data.floor}
           daysToPay={data.daysToPay}

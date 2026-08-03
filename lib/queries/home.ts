@@ -18,6 +18,7 @@ import {
   monthlyEquivalent,
 } from "@/lib/categories";
 import { incomeStats, upcomingPaydays } from "@/lib/income";
+import { computeSetAside, isTransferToSavings } from "@/lib/savings";
 import {
   addDays,
   daysBetween,
@@ -102,9 +103,17 @@ export async function getHomeData() {
     .reduce((sum, x) => sum + Math.abs(x.monthlyAmount), 0);
 
   // --- Runway series ------------------------------------------------------
+  // Savings is deliberately absent from every figure below. The runway models
+  // checking alone, so transfers out to savings read as real outflows rather
+  // than cancelling against a savings balance that is no longer counted.
+  const checkingAccountIds = new Set(
+    depository.filter((a) => a.subtype === "checking").map((a) => a.id)
+  );
+  const checkingTxns = txnRows.filter((t) => checkingAccountIds.has(t.accountId));
+
   const history = reconstructHistory(
-    balance,
-    txnRows.map((t) => ({ date: t.date, amount: Number(t.amount) }))
+    checkingBalance,
+    checkingTxns.map((t) => ({ date: t.date, amount: Number(t.amount) }))
   );
 
   const charges: RecurringCharge[] = subs
@@ -242,6 +251,25 @@ export async function getHomeData() {
     // People who only ever sent money in sort to the bottom.
     .sort((a, b) => b.owed - a.owed);
 
+  // The pay period runs from the previous payday; deposits landing in it are
+  // what the set-aside rate applies to.
+  const periodStart =
+    [...paydayDates]
+      .map((d) => d)
+      .filter((d) => d <= today)
+      .pop() ??
+    upcomingPaydays(addDays(today, -60), income?.cadence ?? "biweekly", income?.payAnchorDate ?? null, income?.payDayOfMonth ?? null, 6)
+      .filter((d) => d <= today)
+      .pop() ??
+    addDays(today, -14);
+
+  const setAside = computeSetAside(
+    txnRows,
+    Number(settingsRow.savingsSetAsideRate),
+    settingsRow.setAsideBasis === "observed" ? "observed" : "set",
+    periodStart
+  );
+
   const nextPayday = upcomingPaydays(
     today,
     income?.cadence ?? "biweekly",
@@ -261,7 +289,12 @@ export async function getHomeData() {
     depositoryCount: depository.length,
     institutionName: items[0]?.institutionName ?? null,
     lastSyncedAt: items[0]?.lastSyncedAt?.toISOString() ?? null,
-    safeToSpend: checkingBalance - scheduled - floor,
+    safeToSpend: checkingBalance - scheduled - floor - setAside.pending,
+    setAside,
+    savingsMoved180d: txnRows
+      .filter((t) => Number(t.amount) < 0 && isTransferToSavings(t.name))
+      .filter((t) => t.date >= addDays(today, -180))
+      .reduce((sum, t) => sum + Math.abs(Number(t.amount)), 0),
     scheduled,
     daysToPay,
     incomeAmount: perPaycheck,

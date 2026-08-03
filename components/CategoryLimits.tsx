@@ -89,7 +89,12 @@ export function CategoryLimits({ categories, mode, incomeAmount }: Props) {
                 ? "no data"
                 : c.cap === null
                   ? `${money(c.spent)} spent · no cap`
-                  : `${money(c.spent)} of ${money(c.cap)}`}
+                  : c.over
+                    ? // An exhausted envelope is a state, not a running total.
+                      // There is no cover-from action here, so a growing
+                      // negative could only be felt, never acted on.
+                      `done for this month · ${money(c.spent - c.cap)} past`
+                    : `${money(c.cap - c.spent)} left of ${money(c.cap)}`}
             </div>
           </div>
 
@@ -133,7 +138,6 @@ export function CategoryLimits({ categories, mode, incomeAmount }: Props) {
 
 function pace(c: Category): string {
   if (c.spent === null || c.cap === null) return "—";
-  const pct = Math.round((c.spent / c.cap) * 100);
-  if (c.over) return `${pct}% · over cap`;
-  return `${pct}% of cap`;
+  if (c.over) return "spent";
+  return `${Math.round((c.spent / c.cap) * 100)}% used`;
 }
